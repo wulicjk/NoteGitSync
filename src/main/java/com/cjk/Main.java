@@ -34,12 +34,27 @@ public class Main {
             FileInputStream fis = new FileInputStream(configFilePath);
             properties.load(fis);
             fis.close();
-            // 读取属性值
-            NoteDirectoryPath = properties.getProperty("NoteDirectoryPath");
-            GitExeLocation = properties.getProperty("GitExeLocation");
-            CommitInfo = properties.getProperty("CommitInfo");
-            GitBranch = properties.getProperty("GitBranch");
-            sleepTime = Long.parseLong(properties.getProperty("sleepTime"));
+
+            //判断当前的操作系统
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("win")) {
+                System.out.println("当前系统是Windows");
+                NoteDirectoryPath = properties.getProperty("WinNoteDirectoryPath");
+                GitExeLocation = properties.getProperty("WinGitExeLocation");
+                CommitInfo = properties.getProperty("WinCommitInfo");
+                GitBranch = properties.getProperty("WinGitBranch");
+                sleepTime = Long.parseLong(properties.getProperty("WinSleepTime"));
+            } else if (os.contains("mac")) {
+                System.out.println("当前系统是Mac");
+                NoteDirectoryPath = properties.getProperty("MacNoteDirectoryPath");
+                GitExeLocation = properties.getProperty("MacGitExeLocation");
+                CommitInfo = properties.getProperty("MacCommitInfo");
+                GitBranch = properties.getProperty("MacGitBranch");
+                sleepTime = Long.parseLong(properties.getProperty("MacSleepTime"));
+            } else {
+                System.out.println("当前系统不是Windows也不是Mac");
+                return;
+            }
         } catch (IOException e) {
             if (e instanceof java.io.FileNotFoundException) {
                 System.out.println("Config file not found.");
