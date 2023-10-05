@@ -16,10 +16,10 @@ public class ExpiringConcurrentHashMap<K, V> {
         long expirationTime = System.currentTimeMillis() + defaultExpirationMillis;
         expirationMap.put(key, expirationTime);
         dataMap.put(key, value);
-        // Schedule removal after 5 seconds
+        // Schedule removal after 2 seconds
         executorService.schedule(() -> {
             remove(key);
-        }, 3, TimeUnit.SECONDS);
+        }, 2, TimeUnit.SECONDS);
     }
 
     public V get(K key) {

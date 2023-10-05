@@ -4,7 +4,8 @@ import com.cjk.watcher.FileWatcher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import ch.qos.logback.core.util.StatusPrinter;
+import ch.qos.logback.classic.LoggerContext;
 
 import java.io.*;
 import java.nio.file.*;
@@ -13,22 +14,42 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+
 /**
  * Created by cjk on 2023/8/16.
  **/
 public class Main {
     private static String NoteDirectoryPath;
     private static String GitExeLocation;
-
     private static String CommitInfo;
     private static String GitBranch;
     private static long sleepTime;
     private static final AtomicInteger fileChangeCount = new AtomicInteger(0);
     private static final Semaphore fileChangeEvent = new Semaphore(0);
-    private static final Logger log = LoggerFactory.getLogger(Main.class);
+    private static final Logger log;
+
+    //设置logback读取配置文件的路径
+    static {
+//        System.setProperty("logback.configurationFile", "./logback.xml");
+        log = LoggerFactory.getLogger(Main.class);
+    }
 
     public static void main(String[] args) throws IOException {
-        String configFilePath = "config.properties"; // 相对路径
+//        // 获取 LoggerContext 实例
+//        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+//
+//        // 设置占位符的实际值
+//        loggerContext.putProperty("log.file.path", "/Users/cjk/Documents/logs/NoteGitSync/info.log");
+//
+//        // 打印 Logback 内部状态
+//        StatusPrinter.print(loggerContext);
+//
+//        System.out.println("log.file.path: " + loggerContext.getProperty("log.file.path"));
+
+
+        String currentWorkingDir = System.getProperty("user.dir");
+        System.out.println("当前工作目录：" + currentWorkingDir);
+        String configFilePath = "config.properties"; // 配置文件对相对路径（相对于当前工作目录）
         Properties properties = new Properties();
         try {
             FileInputStream fis = new FileInputStream(configFilePath);
@@ -80,15 +101,16 @@ public class Main {
     private static void commitThread() {
         while (true) {
             if (fileChangeCount.getAndSet(0) > 0) {
-                //acquire所有的信号量
+                // set to zero
                 fileChangeEvent.drainPermits();
                 pushGit();
             }
             try {
-                //合并30s内的文件变化一起push
+                fileChangeEvent.acquire();
+                // 合并指定时间内的文件变化一起push
                 TimeUnit.SECONDS.sleep(sleepTime);
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                throw new RuntimeException(e);
             }
         }
     }
