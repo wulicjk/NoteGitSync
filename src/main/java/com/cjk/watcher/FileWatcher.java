@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,12 +41,12 @@ public class FileWatcher {
 
 
     public FileWatcher(Path rootPath) throws IOException {
-        this.rootPath = rootPath;
+        FileWatcher.rootPath = rootPath;
         registerAll(rootPath);
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    public void start(AtomicInteger fileChangeCount, Semaphore fileChangeEvent) {
+    public void start(Semaphore fileChangeEvent) {
         WatchKey key;
         FileMoveDetector fileMoveDetector = new FileMoveDetector();
         while (true) {
@@ -62,35 +63,36 @@ public class FileWatcher {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                Path changedFileName = (Path) event.context();
-                //排除不想监听的文件
-                if (isExcludedFile(changedFileName)) continue;
-                //处理事件
-                WatchEvent.Kind<?> kind = event.kind();
-                //线程同步的标志
-                int unCommitedCount = fileChangeCount.incrementAndGet();
-                fileChangeEvent.release();
-                switch (kind.toString()) {
-                    case "ENTRY_CREATE":
-                        Path targetParentPath = (Path) key.watchable();
-                        fileMoveDetector.OnCreate(event, targetParentPath);
-                        //提交保存到git
-                        log.info("File created: " + changedFileName + " 当前待提交更改数: " + unCommitedCount);
-                        break;
-                    case "ENTRY_MODIFY":
-                        //提交保存到git
-                        log.info("File Modified: " + changedFileName + " 当前待提交更改数: " + unCommitedCount);
-                        break;
-                    case "ENTRY_DELETE":
-                        //图片存放地址
-                        Path sourceParentPath = (Path) key.watchable();
-                        fileMoveDetector.OnDelete(event, sourceParentPath);
-                        //提交保存到git
-                        log.info("File deleted: " + changedFileName + " 当前待提交更改数: " + unCommitedCount);
-                        break;
-                }
+
+                handleEvent(fileChangeEvent, event, key, fileMoveDetector);
             }
             key.reset();
+        }
+    }
+
+    private void handleEvent(Semaphore fileChangeSemaphore, WatchEvent<?> event, WatchKey key, FileMoveDetector fileMoveDetector) {
+        Path parentPath = (Path) key.watchable();
+        Path changedFileName = (Path) event.context();
+
+        //排除不想监听的文件
+        if (isExcludedFile(changedFileName))
+            return;
+
+        WatchEvent.Kind<?> kind = event.kind();
+        fileChangeSemaphore.release();
+        int changeCount = fileChangeSemaphore.availablePermits();
+        switch (kind.toString()) {
+            case "ENTRY_CREATE":
+                fileMoveDetector.OnCreate(event, parentPath);
+                log.info("File created: " + changedFileName + " 当前待提交更改数: " + changeCount);
+                break;
+            case "ENTRY_MODIFY":
+                log.info("File Modified: " + changedFileName + " 当前待提交更改数: " + changeCount);
+                break;
+            case "ENTRY_DELETE":
+                fileMoveDetector.OnDelete(event, parentPath);
+                log.info("File deleted: " + changedFileName + " 当前待提交更改数: " + changeCount);
+                break;
         }
     }
 
@@ -113,12 +115,7 @@ public class FileWatcher {
 
     private boolean isExcludedFile(Path filePath) {
         String fileName = filePath.getFileName().toString();
-        for (String s : excludedFiles) {
-            if (fileName.contains(s)) {
-                return true;
-            }
-        }
-        return false;
+        return Arrays.stream(excludedFiles).anyMatch(fileName::contains);
     }
 
     private static boolean isSubPath(Path basePath, Path path) {

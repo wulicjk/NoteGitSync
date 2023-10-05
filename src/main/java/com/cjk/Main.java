@@ -4,15 +4,12 @@ import com.cjk.watcher.FileWatcher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ch.qos.logback.core.util.StatusPrinter;
-import ch.qos.logback.classic.LoggerContext;
 
 import java.io.*;
 import java.nio.file.*;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -24,8 +21,7 @@ public class Main {
     private static String CommitInfo;
     private static String GitBranch;
     private static long sleepTime;
-    private static final AtomicInteger fileChangeCount = new AtomicInteger(0);
-    private static final Semaphore fileChangeEvent = new Semaphore(0);
+    private static final Semaphore fileChangeSemaphore = new Semaphore(0);
     private static final Logger log;
 
     //设置logback读取配置文件的路径
@@ -46,47 +42,12 @@ public class Main {
 //
 //        System.out.println("log.file.path: " + loggerContext.getProperty("log.file.path"));
 
-
-        String currentWorkingDir = System.getProperty("user.dir");
-        System.out.println("当前工作目录：" + currentWorkingDir);
-        String configFilePath = "config.properties"; // 配置文件对相对路径（相对于当前工作目录）
-        Properties properties = new Properties();
-        try {
-            FileInputStream fis = new FileInputStream(configFilePath);
-            properties.load(fis);
-            fis.close();
-
-            //判断当前的操作系统
-            String os = System.getProperty("os.name").toLowerCase();
-            if (os.contains("win")) {
-                System.out.println("当前系统是Windows");
-                NoteDirectoryPath = properties.getProperty("WinNoteDirectoryPath");
-                GitExeLocation = properties.getProperty("WinGitExeLocation");
-                CommitInfo = properties.getProperty("WinCommitInfo");
-                GitBranch = properties.getProperty("WinGitBranch");
-                sleepTime = Long.parseLong(properties.getProperty("WinSleepTime"));
-            } else if (os.contains("mac")) {
-                System.out.println("当前系统是Mac");
-                NoteDirectoryPath = properties.getProperty("MacNoteDirectoryPath");
-                GitExeLocation = properties.getProperty("MacGitExeLocation");
-                CommitInfo = properties.getProperty("MacCommitInfo");
-                GitBranch = properties.getProperty("MacGitBranch");
-                sleepTime = Long.parseLong(properties.getProperty("MacSleepTime"));
-            } else {
-                System.out.println("当前系统不是Windows也不是Mac");
-                return;
-            }
-        } catch (IOException e) {
-            if (e instanceof java.io.FileNotFoundException) {
-                System.out.println("Config file not found.");
-            } else {
-                e.printStackTrace();
-            }
-        }
+        // TODO: 使用Java异常代替手动异常
+        if (init()) return;
 
         FileWatcher fileWatcher = new FileWatcher(Paths.get(NoteDirectoryPath));
         new Thread(() -> {
-            fileWatcher.start(fileChangeCount, fileChangeEvent);
+            fileWatcher.start(fileChangeSemaphore);
         }).start();
 
         //push到github
@@ -98,17 +59,61 @@ public class Main {
         fileWatcher.close();
     }
 
+    private static boolean init() {
+        String currentWorkingDir = System.getProperty("user.dir");
+        System.out.println("当前工作目录：" + currentWorkingDir);
+        String configFilePath = "config.properties"; // 配置文件对相对路径（相对于当前工作目录）
+        Properties properties = new Properties();
+        try {
+            FileInputStream fis = new FileInputStream(configFilePath);
+            properties.load(fis);
+            fis.close();
+
+            if (parseConfig(properties))
+                return true;
+        } catch (IOException e) {
+            if (e instanceof FileNotFoundException) {
+                System.out.println("Config file not found.");
+            } else {
+                e.printStackTrace();
+            }
+        }
+        return false;
+    }
+
+    private static boolean parseConfig(Properties properties) {
+        //判断当前的操作系统
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            System.out.println("当前系统是Windows");
+            NoteDirectoryPath = properties.getProperty("WinNoteDirectoryPath");
+            GitExeLocation = properties.getProperty("WinGitExeLocation");
+            CommitInfo = properties.getProperty("WinCommitInfo");
+            GitBranch = properties.getProperty("WinGitBranch");
+            sleepTime = Long.parseLong(properties.getProperty("WinSleepTime"));
+        } else if (os.contains("mac")) {
+            System.out.println("当前系统是Mac");
+            NoteDirectoryPath = properties.getProperty("MacNoteDirectoryPath");
+            GitExeLocation = properties.getProperty("MacGitExeLocation");
+            CommitInfo = properties.getProperty("MacCommitInfo");
+            GitBranch = properties.getProperty("MacGitBranch");
+            sleepTime = Long.parseLong(properties.getProperty("MacSleepTime"));
+        } else {
+            System.out.println("当前系统不是Windows也不是Mac");
+            return true;
+        }
+        return false;
+    }
+
     private static void commitThread() {
         while (true) {
-            if (fileChangeCount.getAndSet(0) > 0) {
-                // set to zero
-                fileChangeEvent.drainPermits();
-                pushGit();
-            }
             try {
-                fileChangeEvent.acquire();
+                fileChangeSemaphore.acquire();
                 // 合并指定时间内的文件变化一起push
                 TimeUnit.SECONDS.sleep(sleepTime);
+                // set to zero
+                fileChangeSemaphore.drainPermits();
+                pushGit();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
