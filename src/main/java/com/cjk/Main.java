@@ -26,24 +26,12 @@ public class Main {
 
     //设置logback读取配置文件的路径
     static {
-//        System.setProperty("logback.configurationFile", "./logback.xml");
+        System.setProperty("logback.configurationFile", "./logback.xml");
         log = LoggerFactory.getLogger(Main.class);
     }
 
     public static void main(String[] args) throws IOException {
-//        // 获取 LoggerContext 实例
-//        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-//
-//        // 设置占位符的实际值
-//        loggerContext.putProperty("log.file.path", "/Users/cjk/Documents/logs/NoteGitSync/info.log");
-//
-//        // 打印 Logback 内部状态
-//        StatusPrinter.print(loggerContext);
-//
-//        System.out.println("log.file.path: " + loggerContext.getProperty("log.file.path"));
-
-        // TODO: 使用Java异常代替手动异常
-        if (init()) return;
+        init();
 
         FileWatcher fileWatcher = new FileWatcher(Paths.get(NoteDirectoryPath));
         new Thread(() -> {
@@ -52,14 +40,10 @@ public class Main {
 
         //push到github
         new Thread(Main::commitThread).start();
-
         System.out.println("正在监控文件: " + NoteDirectoryPath);
-        System.out.println("输入任意字符退出...");
-        System.in.read();
-        fileWatcher.close();
     }
 
-    private static boolean init() {
+    private static void init() {
         String currentWorkingDir = System.getProperty("user.dir");
         System.out.println("当前工作目录：" + currentWorkingDir);
         String configFilePath = "config.properties"; // 配置文件对相对路径（相对于当前工作目录）
@@ -69,19 +53,19 @@ public class Main {
             properties.load(fis);
             fis.close();
 
-            if (parseConfig(properties))
-                return true;
+            parseConfig(properties);
         } catch (IOException e) {
             if (e instanceof FileNotFoundException) {
                 System.out.println("Config file not found.");
             } else {
                 e.printStackTrace();
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        return false;
     }
 
-    private static boolean parseConfig(Properties properties) {
+    private static void parseConfig(Properties properties) throws Exception {
         //判断当前的操作系统
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
@@ -99,10 +83,8 @@ public class Main {
             GitBranch = properties.getProperty("MacGitBranch");
             sleepTime = Long.parseLong(properties.getProperty("MacSleepTime"));
         } else {
-            System.out.println("当前系统不是Windows也不是Mac");
-            return true;
+            throw new Exception("当前系统不是Windows也不是Mac");
         }
-        return false;
     }
 
     private static void commitThread() {

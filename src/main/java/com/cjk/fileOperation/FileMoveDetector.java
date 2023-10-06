@@ -1,6 +1,5 @@
 package com.cjk.fileOperation;
 
-import com.cjk.tools.ExpiringConcurrentHashMap;
 import com.cjk.watcher.FileWatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +61,6 @@ public class FileMoveDetector {
                 eventList.remove(i);
                 continue;
             }
-
             i++;
         }
     }

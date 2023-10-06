@@ -1,23 +1,14 @@
 package com.cjk.watcher;
 
 import com.cjk.fileOperation.FileMoveDetector;
-import com.cjk.tools.ExpiringConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Created by cjk on 2023/8/18.
@@ -36,11 +27,10 @@ public class FileWatcher {
 
     private final String[] excludedFiles = new String[]{".git", ".~", ".DS_Store", ".png"};
     //<文件名，图片父路径>
-    private final ExpiringConcurrentHashMap<String, Path> delMap = new ExpiringConcurrentHashMap<>();
     private final Logger log = LoggerFactory.getLogger(FileWatcher.class);
 
 
-    public FileWatcher(Path rootPath) throws IOException {
+    public FileWatcher(Path rootPath) {
         FileWatcher.rootPath = rootPath;
         registerAll(rootPath);
     }
@@ -63,7 +53,6 @@ public class FileWatcher {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-
                 handleEvent(fileChangeEvent, event, key, fileMoveDetector);
             }
             key.reset();
@@ -123,7 +112,6 @@ public class FileWatcher {
     }
 
     public void close() throws IOException {
-        delMap.shutdown();
         watchService.close();
     }
 }
