@@ -95,7 +95,6 @@ public class Main {
                 TimeUnit.SECONDS.sleep(sleepTime);
                 // set to zero
                 fileChangeSemaphore.drainPermits();
-                System.out.println("test");
                 pushGit();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -104,7 +103,6 @@ public class Main {
     }
 
     private static void pushGit() {
-        System.out.println("push!");
         log.info("start push!");
         runGitCommand(GitExeLocation, "add", "-A");
         runGitCommand(GitExeLocation, "commit", "-m", "\"" + CommitInfo + "\"");
