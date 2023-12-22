@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Properties;
 import java.util.concurrent.Semaphore;
@@ -50,7 +51,8 @@ public class Main {
         Properties properties = new Properties();
         try {
             FileInputStream fis = new FileInputStream(configFilePath);
-            properties.load(fis);
+            InputStreamReader isr = new InputStreamReader(fis, StandardCharsets.UTF_8);
+            properties.load(isr);
             fis.close();
 
             parseConfig(properties);
@@ -113,6 +115,8 @@ public class Main {
 
     private static void runGitCommand(String... arguments) {
         ProcessBuilder processBuilder = new ProcessBuilder(arguments);
+        processBuilder.environment().put("GIT_COMMITTER_ENCODING", "UTF-8");
+        processBuilder.environment().put("LANG", "en_US.UTF-8");
         processBuilder.directory(new File(NoteDirectoryPath));
         processBuilder.redirectErrorStream(true); // 合并标准输出和错误输出流
         try {
