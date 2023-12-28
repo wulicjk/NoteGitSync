@@ -68,57 +68,58 @@ public class FileMoveDetector {
     private void fileMoveProcess(Path sourceParentPath, Path targetParentPath, Path changedFileName) {
         Path currentFilePath = targetParentPath.resolve(changedFileName);
         File currentFile = new File(currentFilePath.toString());
-        String regex = "!\\[.*]\\(assets/([^)]+)\\)";
-        StringBuilder fileContent = new StringBuilder();
-        List<String> moveFilesList = new ArrayList<>();
-        try (BufferedReader br = new BufferedReader(new FileReader(currentFile))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                fileContent.append(line).append("\n");
-            }
-            Pattern pattern = Pattern.compile(regex);
-            Matcher matcher = pattern.matcher(fileContent);
-            while (matcher.find()) {
-                String foundText = matcher.group(1);  // 获取捕获组中的内容
-                moveFilesList.add(foundText);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        //有图片要移动时，判断target目录是否存在
-        if (!moveFilesList.isEmpty()) {
-            if (!Files.exists(targetParentPath.resolve("assets"))) {
-                try {
-                    Files.createDirectory(targetParentPath.resolve("assets"));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+        if (currentFile.isFile()){
+            String regex = "!\\[.*]\\(assets/([^)]+)\\)";
+            StringBuilder fileContent = new StringBuilder();
+            List<String> moveFilesList = new ArrayList<>();
+            try (BufferedReader br = new BufferedReader(new FileReader(currentFile))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    fileContent.append(line).append("\n");
                 }
-            }
-        }
-        //移动图片
-        for (String imageFileName : moveFilesList) {
-            // 源文件路径
-            Path sourcePath = Paths.get(sourceParentPath.resolve("assets").resolve(imageFileName).toString());
-            // 目标目录路径
-            Path targetPath = Paths.get(targetParentPath.resolve("assets").resolve(imageFileName).toString());
-            try {
-                if (Files.exists(sourcePath)) {
-                    // 如果目标位置已经存在同名文件，先删除它
-                    if (Files.exists(targetPath)) {
-                        Files.delete(targetPath);
-                        log.info("已删除目标位置上的同名文件");
-                    }
-                    Files.move(sourcePath, targetPath);
-                    log.info("File move:" + sourcePath + "--->" + targetPath);
-                } else {
-                    log.info("文件移动失败，" + sourcePath + "不存在");
+                Pattern pattern = Pattern.compile(regex);
+                Matcher matcher = pattern.matcher(fileContent);
+                while (matcher.find()) {
+                    String foundText = matcher.group(1);  // 获取捕获组中的内容
+                    moveFilesList.add(foundText);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
-                log.info("文件移动失败：" + e.getMessage());
+            }
+            //有图片要移动时，判断target目录是否存在
+            if (!moveFilesList.isEmpty()) {
+                if (!Files.exists(targetParentPath.resolve("assets"))) {
+                    try {
+                        Files.createDirectory(targetParentPath.resolve("assets"));
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            //移动图片
+            for (String imageFileName : moveFilesList) {
+                // 源文件路径
+                Path sourcePath = Paths.get(sourceParentPath.resolve("assets").resolve(imageFileName).toString());
+                // 目标目录路径
+                Path targetPath = Paths.get(targetParentPath.resolve("assets").resolve(imageFileName).toString());
+                try {
+                    if (Files.exists(sourcePath)) {
+                        // 如果目标位置已经存在同名文件，先删除它
+                        if (Files.exists(targetPath)) {
+                            Files.delete(targetPath);
+                            log.info("已删除目标位置上的同名文件");
+                        }
+                        Files.move(sourcePath, targetPath);
+                        log.info("File move:" + sourcePath + "--->" + targetPath);
+                    } else {
+                        log.info("文件移动失败，" + sourcePath + "不存在");
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    log.info("文件移动失败：" + e.getMessage());
+                }
             }
         }
-
     }
 
     public class EventComparator implements Comparator<Event> {
