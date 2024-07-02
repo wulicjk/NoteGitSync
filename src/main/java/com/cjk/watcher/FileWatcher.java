@@ -27,7 +27,7 @@ public class FileWatcher {
 
     private final String[] excludedFiles = new String[]{".git", ".~", ".DS_Store", ".png"};
     //<文件名，图片父路径>
-    private final Logger log = LoggerFactory.getLogger(FileWatcher.class);
+    private static final Logger log = LoggerFactory.getLogger(FileWatcher.class);
 
 
     public FileWatcher(Path rootPath) {
@@ -98,7 +98,7 @@ public class FileWatcher {
                 }
             });
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.error("Failed to register file watcher for path: {}", start, e);
         }
     }
 
